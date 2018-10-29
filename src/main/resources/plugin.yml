@@ -1,3 +1,10 @@
 name: SortThemCobbles
 main: io.github.gerwis1998.sortthemcobbles.SortThemCobbles
 version: 1.0
+author: https://github.com/gerwis1998
+commands:
+  stc:
+    description: This plugin sorts your inventory and chests.
+    usage: /stc [inventory/chest]
+    permission: SortThemCobbles.stc
+    permission-message: You don't have <permission>

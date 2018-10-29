@@ -24,4 +24,6 @@ hs_err_pid*
 
 #intelij files
 .idea/**
-src/test/
+src/test/**
+target/**
+

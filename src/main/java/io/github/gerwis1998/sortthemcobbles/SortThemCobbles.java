@@ -12,12 +12,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryInteractEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
@@ -25,36 +23,40 @@ import java.util.ArrayList;
 
 public final class SortThemCobbles extends JavaPlugin implements Listener {
 
+    public static final String PLAYERS_JSON = "./plugins/stc/players.json";
     private ArrayList<User> users = new ArrayList<>();
 
     @Override
     public void onEnable() {
         this.getServer().getPluginManager().registerEvents(this, this);
         try {
-            Plugin plugin = getPlugin(this.getClass());
             Gson gson = new Gson();
-            JsonReader reader = new JsonReader(new FileReader("players.json"));
+            JsonReader reader = new JsonReader(new FileReader(PLAYERS_JSON));
             users = gson.fromJson(reader,User.class);
             if(users == null){
                 users = new ArrayList<>();
             }
+            reader.close();
         } catch (FileNotFoundException e) {
-            File file = new File("players.json");
+            File file = new File(PLAYERS_JSON);
             try {
                 file.createNewFile();
                 onEnable();
             } catch (IOException e1) {
                 e1.printStackTrace();
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     @Override
     public void onDisable(){
         try {
-            Gson gson;
-            gson = new Gson();
-            gson.toJson(users, new FileWriter("players.json"));
+            Gson gson = new GsonBuilder().create();
+            FileWriter writer = new FileWriter(PLAYERS_JSON);
+            gson.toJson(users, writer);
+            writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -194,17 +196,10 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
         }
     }
 
-    private void addNewUser(CommandSender sender){
+    private void addNewUser(CommandSender sender, boolean inventory, boolean chests){
         User user = new User(sender.getName(),true,true);
         users.add(user);
-        sender.sendMessage("Sorting chests and inventory has been enabled.");
-        try {
-            Gson gson;
-            gson = new Gson();
-            gson.toJson(users, new FileWriter("players.json"));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        onDisable();
     }
 
     @Override
@@ -238,7 +233,8 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
                             }
                         }
                         if(!isInPlayers){
-                            addNewUser(sender);
+                            addNewUser(sender,true,false);
+                            sender.sendMessage("Sorting inventory has been enabled.");
                             return true;
                         }
                         return true;
@@ -260,7 +256,8 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
                             }
                         }
                         if(!isInPlayers){
-                            addNewUser(sender);
+                            addNewUser(sender,false,true);
+                            sender.sendMessage("Sorting chests has been enabled.");
                             return true;
                         }
                         return true;

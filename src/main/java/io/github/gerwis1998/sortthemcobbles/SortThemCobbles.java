@@ -3,6 +3,7 @@ package io.github.gerwis1998.sortthemcobbles;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
@@ -11,16 +12,15 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
@@ -32,7 +32,6 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         this.getServer().getPluginManager().registerEvents(this, this);
-        //Path dir = Paths.get(System.getProperty("user.dir"));
         try {
             Files.createDirectories(Paths.get("plugins/stc"));
         } catch (IOException e) {
@@ -41,7 +40,8 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
         try {
             Gson gson = new Gson();
             JsonReader reader = new JsonReader(new FileReader(PLAYERS_JSON));
-            users = gson.fromJson(reader,User.class);
+            Type listType = new TypeToken<ArrayList<User>>(){}.getType();
+            users = gson.fromJson(reader, listType);
             if(users == null){
                 users = new ArrayList<>();
             }
@@ -132,73 +132,71 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event){
-        getLogger().info("Player inventory opened");
-        Player player = (Player) event.getWhoClicked();
-        PlayerInventory playerInventory = player.getInventory();
-        boolean isInPlayers = false;
-        User currUser = null;
-        if(users.size() > 0){
-            for(User user : users){
-                if(player.getName().equalsIgnoreCase(user.name)){
-                    isInPlayers = true;
-                    currUser = user;
-                    break;
-                }
-            }
-        }
-        if(isInPlayers){
-            if(currUser.sortInventory){
-                ArrayList<ItemStack> items = new ArrayList<>();
-                for(int i=9; i<=36; i++){
-                    try {
-                        if(playerInventory.getItem(i) != null){
-                            items.add(playerInventory.getItem(i));
+        if(event.getClick() == ClickType.MIDDLE){
+            //if it's a chest
+            if (event.getInventory().getHolder() instanceof Chest || event.getInventory().getHolder() instanceof DoubleChest){
+                Player player = (Player) event.getWhoClicked();
+                boolean isInPlayers = false;
+                User currUser = null;
+                if(users.size() > 0){
+                    for (User user : users) {
+                        if (user.name.equalsIgnoreCase(player.getName())) {
+                            isInPlayers = true;
+                            currUser = user;
+                            break;
                         }
-                    } catch (Exception ignored) { }
-                }items = sortItems(items);
-                for(int j=9; j<=36; j++){
-                    playerInventory.clear(j);
+                    }
                 }
-                int i=9;
-                for(ItemStack item: items){
-                    playerInventory.setItem(i,item);
-                    i++;
-                }
-            }
-        }
-    }
-
-    @EventHandler
-    public void onChestOpen(InventoryOpenEvent event){
-        Inventory inventory = event.getInventory();
-        if (event.getInventory().getHolder() instanceof Chest || event.getInventory().getHolder() instanceof DoubleChest){//if chest is opened
-            getLogger().info("Chest opened event");
-            Player player = (Player) event.getPlayer();
-            boolean isInPlayers = false;
-            User currUser = null;
-            if(users.size() > 0){
-                for (User user : users) {
-                    if (user.name.equalsIgnoreCase(player.getName())) {
-                        isInPlayers = true;
-                        currUser = user;
-                        break;
+                if (isInPlayers) {
+                    if (currUser.sortChests) {
+                        ArrayList<ItemStack> items = new ArrayList<>();
+                        for(int i=0; i<event.getInventory().getSize(); i++){
+                            try {
+                                if(event.getInventory().getItem(i) != null){
+                                    items.add(event.getInventory().getItem(i));
+                                }
+                            } catch (Exception ignored) { }
+                        }
+                        items = sortItems(items);
+                        event.getInventory().clear();
+                        for(ItemStack item : items){
+                            event.getInventory().addItem(item);
+                        }
                     }
                 }
             }
-            if (isInPlayers) {
-                if (currUser.sortChests) {
-                    ArrayList<ItemStack> items = new ArrayList<>();
-                    for(int i=0; i<inventory.getSize(); i++){
-                        try {
-                            if(inventory.getItem(i) != null){
-                                items.add(inventory.getItem(i));
-                            }
-                        } catch (Exception ignored) { }
+            else{//if it's players inventory
+                Player player = (Player) event.getWhoClicked();
+                PlayerInventory playerInventory = player.getInventory();
+                boolean isInPlayers = false;
+                User currUser = null;
+                if(users.size() > 0){
+                    for(User user : users){
+                        if(player.getName().equalsIgnoreCase(user.name)){
+                            isInPlayers = true;
+                            currUser = user;
+                            break;
+                        }
                     }
-                    items = sortItems(items);
-                    inventory.clear();
-                    for(ItemStack item : items){
-                        inventory.addItem(item);
+                }
+                if(isInPlayers){
+                    if(currUser.sortInventory){
+                        ArrayList<ItemStack> items = new ArrayList<>();
+                        for(int i=9; i<=36; i++){
+                            try {
+                                if(playerInventory.getItem(i) != null){
+                                    items.add(playerInventory.getItem(i));
+                                }
+                            } catch (Exception ignored) { }
+                        }items = sortItems(items);
+                        for(int j=9; j<=36; j++){
+                            playerInventory.clear(j);
+                        }
+                        int i=9;
+                        for(ItemStack item: items){
+                            playerInventory.setItem(i,item);
+                            i++;
+                        }
                     }
                 }
             }
@@ -218,6 +216,7 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
                 if(args.length == 0){
                     sender.sendMessage("/stc inventory - enables sorting inventory");
                     sender.sendMessage("/stc chest - enables sorting chests");
+                    sender.sendMessage("You can sort inventory or chest by clicking middle mouse button while it's open");
                     return true;
                 }
                 if(args.length > 1){

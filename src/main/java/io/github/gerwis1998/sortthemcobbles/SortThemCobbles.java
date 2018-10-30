@@ -182,14 +182,14 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
                 if(isInPlayers){
                     if(currUser.sortInventory){
                         ArrayList<ItemStack> items = new ArrayList<>();
-                        for(int i=9; i<=36; i++){
+                        for(int i=9; i<36; i++){
                             try {
                                 if(playerInventory.getItem(i) != null){
                                     items.add(playerInventory.getItem(i));
                                 }
                             } catch (Exception ignored) { }
                         }items = sortItems(items);
-                        for(int j=9; j<=36; j++){
+                        for(int j=9; j<36; j++){
                             playerInventory.clear(j);
                         }
                         int i=9;

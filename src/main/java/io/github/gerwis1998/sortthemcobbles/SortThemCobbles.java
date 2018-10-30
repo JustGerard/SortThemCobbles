@@ -19,16 +19,25 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public final class SortThemCobbles extends JavaPlugin implements Listener {
 
-    public static final String PLAYERS_JSON = "./plugins/stc/players.json";
+    public static final String PLAYERS_JSON = "plugins/stc/players.json";
     private ArrayList<User> users = new ArrayList<>();
 
     @Override
     public void onEnable() {
         this.getServer().getPluginManager().registerEvents(this, this);
+        //Path dir = Paths.get(System.getProperty("user.dir"));
+        try {
+            Files.createDirectories(Paths.get("plugins/stc"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         try {
             Gson gson = new Gson();
             JsonReader reader = new JsonReader(new FileReader(PLAYERS_JSON));
@@ -197,7 +206,7 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
     }
 
     private void addNewUser(CommandSender sender, boolean inventory, boolean chests){
-        User user = new User(sender.getName(),true,true);
+        User user = new User(sender.getName(),inventory,chests);
         users.add(user);
         onDisable();
     }

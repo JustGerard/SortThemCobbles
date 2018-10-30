@@ -1,42 +1,45 @@
 package io.github.gerwis1998.sortthemcobbles;
 
 
-import com.esotericsoftware.yamlbeans.YamlException;
-import com.esotericsoftware.yamlbeans.YamlReader;
-import com.esotericsoftware.yamlbeans.YamlWriter;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonReader;
 import org.bukkit.block.Chest;
+import org.bukkit.block.DoubleChest;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.block.Action;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryInteractEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
 import java.util.ArrayList;
 
-public final class SortThemCobbles extends JavaPlugin {
+public final class SortThemCobbles extends JavaPlugin implements Listener {
 
-    public ArrayList<User> users = new ArrayList<>();
+    private ArrayList<User> users = new ArrayList<>();
 
     @Override
     public void onEnable() {
+        this.getServer().getPluginManager().registerEvents(this, this);
         try {
-            YamlReader reader = new YamlReader(new FileReader("/plugins/stc/players.yml"));
-            while(true){
-                User user = reader.read(User.class);
-                if(user == null) break;
-                users.add(user);
+            Plugin plugin = getPlugin(this.getClass());
+            Gson gson = new Gson();
+            JsonReader reader = new JsonReader(new FileReader("players.json"));
+            users = gson.fromJson(reader,User.class);
+            if(users == null){
+                users = new ArrayList<>();
             }
-        } catch (FileNotFoundException | YamlException e) {
-            File file = new File("/plugins/stc/players.yml");
+        } catch (FileNotFoundException e) {
+            File file = new File("players.json");
             try {
                 file.createNewFile();
                 onEnable();
@@ -46,20 +49,18 @@ public final class SortThemCobbles extends JavaPlugin {
         }
     }
 
+    @Override
     public void onDisable(){
         try {
-            YamlWriter writer = new YamlWriter(new FileWriter("/plugins/stc/players.yml"));
-            if(users.size()>0){
-                for (User user : users){
-                    writer.write(user);
-                }
-            }
+            Gson gson;
+            gson = new Gson();
+            gson.toJson(users, new FileWriter("players.json"));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public ArrayList<ItemStack> sortItems(ArrayList<ItemStack> items){
+    private ArrayList<ItemStack> sortItems(ArrayList<ItemStack> items){
         for(int i=0; i<items.size(); i++){
             for(int j=1; j<items.size()-i; j++){
                 ItemStack item1 = items.get(j-1);
@@ -119,34 +120,37 @@ public final class SortThemCobbles extends JavaPlugin {
     }
 
     @EventHandler
-    public void InventorySort(InventoryOpenEvent event){
-        Player player = (Player) event.getPlayer();
+    public void onInventoryClick(InventoryClickEvent event){
+        getLogger().info("Player inventory opened");
+        Player player = (Player) event.getWhoClicked();
+        PlayerInventory playerInventory = player.getInventory();
         boolean isInPlayers = false;
         User currUser = null;
-        for(User user : users){
-            if(player.getName() == user.name){
-                isInPlayers = true;
-                currUser = user;
-                break;
+        if(users.size() > 0){
+            for(User user : users){
+                if(player.getName().equalsIgnoreCase(user.name)){
+                    isInPlayers = true;
+                    currUser = user;
+                    break;
+                }
             }
         }
         if(isInPlayers){
-            if(currUser.sortInventory && currUser != null){
-                PlayerInventory inventory = player.getInventory();
+            if(currUser.sortInventory){
                 ArrayList<ItemStack> items = new ArrayList<>();
                 for(int i=9; i<=36; i++){
                     try {
-                        if(inventory.getItem(i).getAmount() > 0) {
-                            items.add(inventory.getItem(i));
+                        if(playerInventory.getItem(i) != null){
+                            items.add(playerInventory.getItem(i));
                         }
-                    } catch (Exception e) { }
+                    } catch (Exception ignored) { }
                 }items = sortItems(items);
                 for(int j=9; j<=36; j++){
-                    inventory.clear(j);
+                    playerInventory.clear(j);
                 }
                 int i=9;
                 for(ItemStack item: items){
-                    inventory.setItem(i,item);
+                    playerInventory.setItem(i,item);
                     i++;
                 }
             }
@@ -154,29 +158,31 @@ public final class SortThemCobbles extends JavaPlugin {
     }
 
     @EventHandler
-    public void ChestSort(PlayerInteractEvent event){
-        Block block = event.getClickedBlock();
-        Action action = event.getAction();
-        if(block.getType() == Material.CHEST && action == Action.RIGHT_CLICK_BLOCK) {
-            Player player = event.getPlayer();
+    public void onChestOpen(InventoryOpenEvent event){
+        Inventory inventory = event.getInventory();
+        if (event.getInventory().getHolder() instanceof Chest || event.getInventory().getHolder() instanceof DoubleChest){//if chest is opened
+            getLogger().info("Chest opened event");
+            Player player = (Player) event.getPlayer();
             boolean isInPlayers = false;
             User currUser = null;
-            for (User user : users) {
-                if (user.name.equalsIgnoreCase(player.getName())) {
-                    isInPlayers = true;
-                    currUser = user;
-                    break;
+            if(users.size() > 0){
+                for (User user : users) {
+                    if (user.name.equalsIgnoreCase(player.getName())) {
+                        isInPlayers = true;
+                        currUser = user;
+                        break;
+                    }
                 }
             }
-            if (isInPlayers && currUser != null) {
+            if (isInPlayers) {
                 if (currUser.sortChests) {
-                    Chest chest = (Chest) block.getState();
-                    Inventory inventory = chest.getInventory();
                     ArrayList<ItemStack> items = new ArrayList<>();
                     for(int i=0; i<inventory.getSize(); i++){
                         try {
-                            items.add(inventory.getItem(i));
-                        } catch (Exception e) { }
+                            if(inventory.getItem(i) != null){
+                                items.add(inventory.getItem(i));
+                            }
+                        } catch (Exception ignored) { }
                     }
                     items = sortItems(items);
                     inventory.clear();
@@ -188,10 +194,17 @@ public final class SortThemCobbles extends JavaPlugin {
         }
     }
 
-    public void addNewUser(CommandSender sender){
+    private void addNewUser(CommandSender sender){
         User user = new User(sender.getName(),true,true);
         users.add(user);
         sender.sendMessage("Sorting chests and inventory has been enabled.");
+        try {
+            Gson gson;
+            gson = new Gson();
+            gson.toJson(users, new FileWriter("players.json"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -210,16 +223,18 @@ public final class SortThemCobbles extends JavaPlugin {
                 switch (args[0]){
                     case "inventory":{
                         boolean isInPlayers = false;
-                        for(User user : users){
-                            if(user.name.equalsIgnoreCase(sender.getName())){
-                                isInPlayers = true;
-                                user.sortInventory = !user.sortInventory;
-                                if (user.sortInventory) {
-                                    sender.sendMessage("Sorting inventory has been enabled.");
-                                } else {
-                                    sender.sendMessage("Sorting inventory has been disabled.");
+                        if(users.size() > 0){
+                            for(User user : users){
+                                if(user.name.equalsIgnoreCase(sender.getName())){
+                                    isInPlayers = true;
+                                    user.sortInventory = !user.sortInventory;
+                                    if (user.sortInventory) {
+                                        sender.sendMessage("Sorting inventory has been enabled.");
+                                    } else {
+                                        sender.sendMessage("Sorting inventory has been disabled.");
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
                         if(!isInPlayers){
@@ -230,16 +245,18 @@ public final class SortThemCobbles extends JavaPlugin {
                     }
                     case "chest":{
                         boolean isInPlayers = false;
-                        for(User user : users){
-                            if(user.name.equalsIgnoreCase(sender.getName())){
-                                isInPlayers = true;
-                                user.sortChests = !user.sortChests;
-                                if(user.sortChests){
-                                    sender.sendMessage("Sorting chests has been enabled.");
-                                } else {
-                                    sender.sendMessage("Sorting chests has been disabled.");
+                        if (users.size() > 0) {
+                            for(User user : users){
+                                if(user.name.equalsIgnoreCase(sender.getName())){
+                                    isInPlayers = true;
+                                    user.sortChests = !user.sortChests;
+                                    if(user.sortChests){
+                                        sender.sendMessage("Sorting chests has been enabled.");
+                                    } else {
+                                        sender.sendMessage("Sorting chests has been disabled.");
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
                         if(!isInPlayers){

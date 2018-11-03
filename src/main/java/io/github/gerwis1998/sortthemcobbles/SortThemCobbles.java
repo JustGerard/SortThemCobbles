@@ -120,7 +120,7 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
                 }
                 //if items have other types
                 else{
-                    if(item1.getType().toString().compareTo(item2.getType().toString()) > 0){
+                    if(item1.getType().toString().compareTo(item2.getType().toString()) > 0 || item1.getData().toString().compareToIgnoreCase(item2.getData().toString()) > 0){
                         items.set(j-1,item2);
                         items.set(j,item1);
                     }

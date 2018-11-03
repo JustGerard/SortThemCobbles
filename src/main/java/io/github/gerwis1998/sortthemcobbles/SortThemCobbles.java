@@ -77,7 +77,7 @@ public final class SortThemCobbles extends JavaPlugin implements Listener {
                 ItemStack item1 = items.get(j-1);
                 ItemStack item2 = items.get(j);
                 //if items are the same type
-                if(item1.getType().toString().compareTo(item2.getType().toString()) == 0){
+                if(item1.getType().toString().compareToIgnoreCase(item2.getType().toString()) == 0 && item1.getData().toString().compareToIgnoreCase(item2.getData().toString()) == 0){
                     boolean removed = false;
                     if(item1.getAmount() == item2.getAmount()){//if there is the same amount of item1 and item2
                         if(item1.getAmount() < item1.getMaxStackSize()){//if there isn't a full stack of item1 and item2
